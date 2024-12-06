@@ -1,0 +1,11 @@
+[package]
+name = "part_1"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+grid = "0.15.0"
+grids = "0.2.3"
+point = "0.3.1"
