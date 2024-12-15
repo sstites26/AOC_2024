@@ -1,138 +1,160 @@
-use grid::Grid;
-use geo::Point;
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 const INPUT: &str = include_str!("test_input.txt");
-//const INPUT: &str = include_str!("real_input.txt");
+// const INPUT: &str = include_str!("real_input.txt");
 
+#[derive(Debug)]
+#[derive(Copy, Clone)]
 #[derive(Eq, Hash, PartialEq)]
-struct MyPoint {
-    x: i32,
-    y: i32,
+struct File {
+    index: i64,
+    block_size: i64,
+    space_after: i64,
+    display: i64
+}
+
+#[derive(Debug)]
+#[derive(Copy, Clone)]
+#[derive(Eq, Hash, PartialEq)]
+struct Available_Info {
+    starting_index: i64,
+    sizes: i64
 }
 
 fn main() {
-    let line_count = INPUT.lines().count();
-    let line_width = INPUT.lines().next().expect("DOESNT EXIST").len();
-    let mut grid : Grid<char> = Grid::new(line_count.try_into().unwrap(), line_width.try_into().unwrap());
+    let line = INPUT.lines().nth(0).expect("bad index");
+    let vector_values = parse_line(line);
 
-    let mut point_map: HashMap<char, Vec<Point>> = HashMap::new();
-    let mut antennas : HashSet<MyPoint> = HashSet::new();
-    
-    let mut y = 0;
-    INPUT.lines().for_each(|line| {
-        let mut x = 0;
+   let vv = sort_it(vector_values.1, vector_values.0);
+    // println!("{:?}", vv);
 
-        for c in line.chars() {
-            if c != '.' && c != '#' {
-                let point = Point::new(x as f64, y as f64);
+    let mut total = 0;
+    let mut value_index = 0;
+    for value in vv {
+        if value != -1 {
+            let temp = value * value_index;
+            total += temp;
+        }
+        value_index += 1;
+    }
 
-                if point_map.contains_key(&c) {
-                    point_map.get_mut(&c).expect("REASON").push(point);
-                } else {
-                    let mut vect : Vec<Point> = Vec::new();
-                    vect.push(point);
-                    point_map.insert(c, vect);
-                }
+     println!("{}", total);
+}
+
+fn sort_it(mut files_info: Vec<File>, mut values: Vec<i64>) -> Vec<i64> {
+    let mut file = files_info.pop();
+    while file != None {
+        let mut moved = false;
+        let mut jklm = 0;
+        while !moved {
+            let available = how_many_spaces(values.clone(), jklm);
+
+            if jklm >= file.unwrap().index {
+                moved = true;
+            } else if available.sizes >= file.unwrap().block_size {
+                // if available.sizes > file.unwrap().block_size {
+                //     println!("Available {}, Looking for {} ", available.sizes, file.unwrap().block_size);
+                // }
+                // println!("Available {}, Looking for {} MOVING!!", available.sizes, file.unwrap().block_size);
+                values = move_block(values, available.starting_index, file.unwrap().index, file.unwrap().block_size);
+                moved = true;
+                jklm = 0;
+            } else  {
+                jklm = available.starting_index/* + available.sizes*/ + 1;
             }
+        }
+        
+        file = files_info.pop();
+    }
+    values
+}
 
-            x += 1;
+fn move_block(mut line: Vec<i64>, into_index: i64, from_index: i64, size: i64) -> Vec<i64>{
+    let mut swaps = 0;
+    while swaps < size {
+        line.swap((into_index + swaps).try_into().unwrap(), (from_index + swaps).try_into().unwrap());
+        swaps += 1;
+    }
+
+    line
+}
+
+fn how_many_spaces(line: Vec<i64>, index: i64) -> Available_Info {
+    let mut i = index;
+    let mut done = false;
+    let mut replace_index = index;
+    let mut count = 1;
+
+    while !done {
+        if *line.get(i as usize).unwrap() == -1 {
+            replace_index = i;
+            let mut new_i = i as usize;
+            while *line.get(new_i).unwrap() == -1 && new_i < line.len() - 1 {
+                count += 1;
+                new_i += 1;
+            }
+            done = true;
+        }
+        i += 1;
+    }
+
+    count = count - 1;
+    let available_info = Available_Info{starting_index: replace_index, sizes: count};
+
+    available_info
+}
+
+fn parse_line(line: &str) -> (Vec<i64>, Vec<File>) {
+    let mut index = 0;
+    let last_string = line.chars().last().unwrap();
+    let mut vector_vals : Vec<i64> = Vec::new();
+    let mut files : Vec<File> = Vec::new();
+    let mut index_value = 0;
+
+    while index < line.len() - 2 {
+        let pair = &line[index..index + 2];
+        let digits = get_digits(pair.parse::<i64>().expect("REASON"));
+
+        let mut i = 0;
+
+        let file = File{index: vector_vals.len() as i64, block_size: digits.0, space_after: digits.1, display: index_value};
+        // println!("{:?}", file);
+        files.push(file);
+
+        while i < digits.0 {
+            vector_vals.push(index_value);
+            i += 1;
         }
 
-        y += 1;
-    });
-
-    // println!("{:?}", point_map);
-
-    // For all values in map get the vector of points.
-    // For each point in vector, find the slope and distance.
-    // If distance is not more than 2, discard.
-    // If distance is more than 2, calc the 2 points on either end on the same slope.
-
-    for (key, value) in point_map.into_iter() {
-        // println!("KEY TESTING: {}", key);
-        let vect = &value;
-
-        let mut index = 0;
-        while index < vect.len() {
-            let mut test_index = index + 1;
-            while test_index < vect.len() {
-                let p1 = vect[index];
-                let p2 = vect[test_index];
-
-                // println!("TEST {:?} {:?}", p1, p2);
-
-                let distance = get_distance(p1, p2);
-
-                if distance > 1 as f64 {
-                    let new_points = test_points(p1, p2);
-
-                    let new_point1 = new_points.0;
-                    let new_point2 = new_points.1;
-
-                    let myp1 = MyPoint{x: new_point1.x() as i32, y: new_point1.y() as i32};
-                    let myp2 = MyPoint{x: new_point2.x() as i32, y: new_point2.y() as i32};
-
-                    if is_in_grid(new_point1, line_width.try_into().unwrap(), line_count.try_into().unwrap()) {
-                        antennas.insert(myp1);
-                    } 
-
-                    if is_in_grid(new_point2, line_width.try_into().unwrap(), line_count.try_into().unwrap()) {
-                        antennas.insert(myp2);
-                    }
-                }
-
-                test_index += 1;
-            }
-            index += 1;
+        i = 0;
+        while i < digits.1 {
+            vector_vals.push(-1);
+            i += 1;
         }
-    }
-    println!("{}", antennas.len());
-}
 
-fn is_in_grid(point: Point, rows: i32, cols: i32) -> bool {
-    let r = rows - 1;
-    let c = cols - 1;
-
-    if point.x() < 0.0 || point.x() > c.into() {
-        return false;
+        index += 2;
+        index_value += 1;
     }
 
-    if point.y() < 0.0 || point.y() > r.into() {
-        return false;
+    let mut i = 0;
+    let last_value = (last_string.to_string()).parse::<i64>().unwrap();
+
+    let file = File{index: vector_vals.len() as i64, block_size: last_value, space_after: 0, display: index_value};
+    // println!("{:?}", file);
+    files.push(file);
+
+    while i < last_value {
+         vector_vals.push(index_value);
+         i += 1;
     }
 
-    // println!("{:?}", point);
-    return true;
+    (vector_vals, files)
 }
 
-fn test_points(point1: Point, point2: Point) -> (Point, Point) {
-    let slope = get_slope(point1, point2);
+fn get_digits(number: i64) -> (i64, i64) {
+    let first = number / 10;
+    let second = number % 10;
 
-    let newPoint1 = Point::new(point1.x() + slope.0, point1.y() + slope.1);
-    let newPoint2 = Point::new(point2.x() - slope.0, point2.y() - slope.1);
-
-    (newPoint1, newPoint2)
-}
-
-fn get_distance(point1: Point, point2: Point) -> f64 {
-    let diff_x = point1.x() - point2.x();
-    let diff_y = point1.y() - point2.y();
-
-    let sq_x = diff_x * diff_x;
-    let sq_y = diff_y * diff_y;
-
-    let distance = f64::sqrt(sq_x + sq_y);
-
-    distance
-}
-
-fn get_slope(point1: Point, point2: Point) -> (f64, f64) {
-    let x = point1.x() - point2.x();
-    let y = point1.y() - point2.y();
-
-    (x, y)
+    (first, second)
 }
 
 #[cfg(test)]
@@ -140,21 +162,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_in_line_test() {
-        let mut point1 = Point::new(5 as f64, 7 as f64);
-        let mut point2 = Point::new(9 as f64, 7 as f64);
-        assert_eq!(test_in_line(point1, point2), true);
+    fn swaps_test() {
         
-        point1 = Point::new(5 as f64, 7 as f64);
-        point2 = Point::new(5 as f64, 9 as f64);
-        assert_eq!(test_in_line(point1, point2), true);
-        
-        point1 = Point::new(5 as f64, 3 as f64);
-        point2 = Point::new(1 as f64, 9 as f64);
-        assert_eq!(test_in_line(point1, point2), false);
-        
-        point1 = Point::new(4 as f64, 3 as f64);
-        point2 = Point::new(5 as f64, 5 as f64);
-        assert_eq!(test_in_line(point1, point2), true);
+        let mut first = [2 , 2, 2, -1, -1, -1, 5, 7, 7, 7];
+        let mut result = move_block(first.to_vec(), 3, 7, 3);
+        assert_eq!(result, [2 , 2, 2, 7, 7, 7, 5, -1, -1, -1]);
+
+        let mut second = [2 , 2, 2, 4, 1, -1, 5, 7, 7, 7, 6, 6, 6, -1, -1, 8, 8, 9, 9, 9];
+        result = move_block(second.to_vec(), 13, 15, 2);
+        assert_eq!(result, [2 , 2, 2, 4, 1, -1, 5, 7, 7, 7, 6, 6, 6, 8, 8, -1, -1, 9, 9, 9]);
+
+        let mut third = [-1 , 2, 2, 4, 1, -1, 5];
+        result = move_block(third.to_vec(), 0, 6, 1);
+        assert_eq!(result, [5, 2 , 2, 4, 1, -1, -1]);
     }
 }

@@ -1,5 +1,5 @@
-const INPUT: &str = include_str!("test_input.txt");
-//const INPUT: &str = include_str!("real_input.txt");
+// const INPUT: &str = include_str!("test_input.txt");
+const INPUT: &str = include_str!("real_input.txt");
 
 fn main() {
     let line = INPUT.lines().nth(0).expect("bad index");
