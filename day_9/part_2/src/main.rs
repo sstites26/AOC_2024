@@ -1,11 +1,14 @@
 
+use std::fs::File;
+use std::io::{BufWriter, Write};
+
 const INPUT: &str = include_str!("test_input.txt");
 // const INPUT: &str = include_str!("real_input.txt");
 
 #[derive(Debug)]
 #[derive(Copy, Clone)]
 #[derive(Eq, Hash, PartialEq)]
-struct File {
+struct MyFile {
     index: i64,
     block_size: i64,
     space_after: i64,
@@ -24,8 +27,7 @@ fn main() {
     let line = INPUT.lines().nth(0).expect("bad index");
     let vector_values = parse_line(line);
 
-   let vv = sort_it(vector_values.1, vector_values.0);
-    // println!("{:?}", vv);
+    let vv = sort_it(vector_values.1, vector_values.0);
 
     let mut total = 0;
     let mut value_index = 0;
@@ -40,30 +42,29 @@ fn main() {
      println!("{}", total);
 }
 
-fn sort_it(mut files_info: Vec<File>, mut values: Vec<i64>) -> Vec<i64> {
+fn sort_it(mut files_info: Vec<MyFile>, mut values: Vec<i64>) -> Vec<i64> {
     let mut file = files_info.pop();
+    let mut test = 0;
     while file != None {
         let mut moved = false;
         let mut jklm = 0;
         while !moved {
             let available = how_many_spaces(values.clone(), jklm);
 
-            if jklm >= file.unwrap().index {
+            if jklm > file.unwrap().index || file.unwrap().index < available.starting_index {
                 moved = true;
-            } else if available.sizes >= file.unwrap().block_size {
-                // if available.sizes > file.unwrap().block_size {
-                //     println!("Available {}, Looking for {} ", available.sizes, file.unwrap().block_size);
-                // }
-                // println!("Available {}, Looking for {} MOVING!!", available.sizes, file.unwrap().block_size);
+            } else if available.sizes >= file.unwrap().block_size  {
                 values = move_block(values, available.starting_index, file.unwrap().index, file.unwrap().block_size);
                 moved = true;
                 jklm = 0;
             } else  {
-                jklm = available.starting_index/* + available.sizes*/ + 1;
+                jklm = available.starting_index + available.sizes + 1;
             }
         }
         
         file = files_info.pop();
+
+        test += 1;
     }
     values
 }
@@ -103,11 +104,11 @@ fn how_many_spaces(line: Vec<i64>, index: i64) -> Available_Info {
     available_info
 }
 
-fn parse_line(line: &str) -> (Vec<i64>, Vec<File>) {
+fn parse_line(line: &str) -> (Vec<i64>, Vec<MyFile>) {
     let mut index = 0;
     let last_string = line.chars().last().unwrap();
     let mut vector_vals : Vec<i64> = Vec::new();
-    let mut files : Vec<File> = Vec::new();
+    let mut files : Vec<MyFile> = Vec::new();
     let mut index_value = 0;
 
     while index < line.len() - 2 {
@@ -116,7 +117,7 @@ fn parse_line(line: &str) -> (Vec<i64>, Vec<File>) {
 
         let mut i = 0;
 
-        let file = File{index: vector_vals.len() as i64, block_size: digits.0, space_after: digits.1, display: index_value};
+        let file = MyFile{index: vector_vals.len() as i64, block_size: digits.0, space_after: digits.1, display: index_value};
         // println!("{:?}", file);
         files.push(file);
 
@@ -138,8 +139,7 @@ fn parse_line(line: &str) -> (Vec<i64>, Vec<File>) {
     let mut i = 0;
     let last_value = (last_string.to_string()).parse::<i64>().unwrap();
 
-    let file = File{index: vector_vals.len() as i64, block_size: last_value, space_after: 0, display: index_value};
-    // println!("{:?}", file);
+    let file = MyFile{index: vector_vals.len() as i64, block_size: last_value, space_after: 0, display: index_value};
     files.push(file);
 
     while i < last_value {
