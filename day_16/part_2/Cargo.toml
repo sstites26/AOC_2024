@@ -1,0 +1,9 @@
+[package]
+name = "part_2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cgmath = "0.18.0"
+grid = "0.15.0"
+pathfinding = "4.12.0"
