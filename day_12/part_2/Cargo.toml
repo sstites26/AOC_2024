@@ -1,0 +1,10 @@
+[package]
+name = "part_2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+geo = "0.29.3"
+grid = "0.15.0"
+itertools = "0.13.0"
+rustc_data_structures = "0.1.2"
